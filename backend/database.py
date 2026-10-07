@@ -12,14 +12,16 @@ easy to swap SQLite for Postgres later by changing only this file.
 """
 
 from collections.abc import Generator
+import os
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-# A file-backed SQLite database in the backend/ directory. The four slashes in
-# "sqlite:///" mean "a relative path", so running the app from backend/ always
-# finds the same file.
-DATABASE_URL = "sqlite:///./airbnb.db"
+# A file-backed SQLite database by default. Hosting platforms (Render, Railway,
+# Fly, …) provide a persistent location, so the path is overridable via
+# DATABASE_URL. Note SQLite uses four slashes for an absolute path, e.g.
+# sqlite:////data/airbnb.db.
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./airbnb.db")
 
 engine = create_engine(
     DATABASE_URL,

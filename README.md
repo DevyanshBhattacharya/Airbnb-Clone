@@ -320,6 +320,26 @@ host mode.
 
 ---
 
+## Deployment
+
+The two apps deploy to two different kinds of host:
+
+- **Frontend → Vercel** (native Next.js target).
+- **Backend → a container host** (Render/Railway/Fly) because it is a
+  long-running FastAPI process with a SQLite file and disk uploads — _not_ a fit
+  for Vercel's stateless serverless functions.
+
+Full step-by-step guide: **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**. The short version:
+
+1. **Backend** — Render **Blueprint** using [`render.yaml`](render.yaml) and
+   [`backend/Dockerfile`](backend/Dockerfile). Set `CORS_ORIGINS` to your Vercel URL.
+2. **Frontend** — Vercel project with **Root Directory = `frontend`** and
+   `NEXT_PUBLIC_API_URL` = the backend URL, then redeploy.
+
+> ⚠️ **Monorepo gotcha:** Vercel must build from the `frontend` subdirectory. If
+> the Root Directory is left at the repo root, the build succeeds but every route
+> returns `500 FUNCTION_INVOCATION_FAILED`.
+
 ## Screenshots
 
 | Listing detail | Booking calendar |
@@ -424,6 +444,8 @@ This is a demo, so a few things are intentionally simulated:
   inventory, design tokens, mock-auth flow, and Next.js 16 notes.
 - [`docs/airbnb-feature-study.md`](docs/airbnb-feature-study.md) — a study of
   Airbnb's features, the UX behind each, and this clone's status against them.
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — deploying the frontend to Vercel
+  and the backend to a container host, plus troubleshooting.
 
 ## Contributing
 

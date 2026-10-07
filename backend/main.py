@@ -10,6 +10,7 @@ This file does three things and nothing else:
 """
 
 from contextlib import asynccontextmanager
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,16 +42,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# The Next.js app runs on :3000 (and sometimes :3001 if 3000 is taken). Only
-# these origins may call the API from a browser.
+# The Next.js app runs on :3000 (and sometimes :3001 if 3000 is taken). In
+# production, set CORS_ORIGINS to a comma-separated list of allowed origins,
+# e.g. CORS_ORIGINS="https://your-app.vercel.app".
+_default_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
+_configured = os.getenv("CORS_ORIGINS", "").strip()
+allow_origins = (
+    [origin.strip() for origin in _configured.split(",") if origin.strip()]
+    if _configured
+    else _default_origins
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-    ],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

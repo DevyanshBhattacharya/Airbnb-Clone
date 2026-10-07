@@ -3,15 +3,16 @@ Image uploads.
 
 The assignment lists "image upload to cloud storage". Real cloud storage needs
 credentials we don't have here, so this endpoint implements the *interface* a
-cloud adapter would implement — validate, store, return an absolute URL — with a
-local-disk backend as the default. Swapping in S3/Cloudinary later means
-replacing the two lines that write the file and build the URL; nothing else
-changes (the frontend just receives a URL either way).
+cloud adapter would implement — validate, store, return a URL — with a local-disk
+backend as the default. Swapping in S3/Cloudinary later means replacing the two
+lines that write the file and build the URL; nothing else changes (the frontend
+just receives a URL either way).
 
-Files are written to backend/uploads/ and served by FastAPI's StaticFiles mount
-at /uploads/<name> (see main.py).
+Files are written to UPLOAD_DIR (backend/uploads/ by default) and served by
+FastAPI's StaticFiles mount at /uploads/<name> (see main.py).
 """
 
+import os
 import uuid
 from pathlib import Path
 
@@ -23,9 +24,10 @@ from schemas import UploadOut
 
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
-# uploads/ sits next to the routers/ package (backend/uploads/).
-UPLOAD_DIR = Path(__file__).resolve().parent.parent / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
+# uploads/ sits next to the routers/ package (backend/uploads/) by default.
+# On hosts with persistent storage, point UPLOAD_DIR at a mounted volume.
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", Path(__file__).resolve().parent.parent / "uploads"))
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Restrict to real image types and cap the size to keep the demo sane.
 ALLOWED_TYPES = {

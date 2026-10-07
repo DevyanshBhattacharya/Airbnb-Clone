@@ -1,0 +1,20 @@
+# Render blueprint for the FastAPI backend.
+#
+# Render → New → Blueprint → point at this repo. Then set CORS_ORIGINS in the
+# dashboard to your Vercel URL. See docs/DEPLOYMENT.md.
+#
+# Note: the free plan has an ephemeral filesystem, so the SQLite demo data is
+# re-seeded on each deploy/restart. Add a `disk:` block (paid plans) mounted at
+# /data to persist the database and uploads.
+services:
+  - type: web
+    name: airbnb-clone-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: CORS_ORIGINS
+        sync: false # set in the Render dashboard, e.g. https://your-app.vercel.app
