@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/* Class-based dark mode: toggled by adding `.dark` to <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Theme tokens.
+ *
+ * The raw values live in CSS variables so the whole palette can be swapped at
+ * runtime by toggling `.dark`. `@theme inline` then exposes each variable as a
+ * Tailwind utility (bg-canvas, text-ink, border-hairline, …), which is why
+ * components never hardcode hex values.
+ */
+:root {
+  --canvas: #ffffff;
+  --surface: #f7f7f7;
+  --ink: #222222;
+  --muted: #717171;
+  --muted-soft: #b0b0b0;
+  --hairline: #dddddd;
+  --hairline-soft: #ebebeb;
+}
+
+.dark {
+  --canvas: #121212;
+  --surface: #1e1e1e;
+  --ink: #f4f4f4;
+  --muted: #a3a3a3;
+  --muted-soft: #6b6b6b;
+  --hairline: #333333;
+  --hairline-soft: #262626;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-muted-soft: var(--muted-soft);
+  --color-hairline: var(--hairline);
+  --color-hairline-soft: var(--hairline-soft);
+
+  /* Brand accent is intentionally constant across themes. */
+  --color-rausch: #ff385c;
+  --color-rausch-dark: #e31c5f;
+  --color-rausch-deep: #d70466;
+
+  --shadow-card: 0 6px 16px rgba(0, 0, 0, 0.12);
+  --shadow-modal: 0 8px 28px rgba(0, 0, 0, 0.2);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* The category bar scrolls horizontally but must not show a scrollbar. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Keep the native date picker icon on-brand and tappable. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+/* Shared form control used by the host listing form. */
+.input {
+  width: 100%;
+  border: 1px solid var(--hairline);
+  border-radius: 0.75rem;
+  background: var(--canvas);
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  color: var(--ink);
+  outline: none;
+}
+.input:focus {
+  border-color: var(--ink);
+}
+
+/* Leaflet's default chrome should follow the theme too. */
+.dark .leaflet-container {
+  background: #1a1a1a;
+}
+
+/* Airbnb-style price-pill map marker (built with a Leaflet divIcon). */
+.airbnb-pin {
+  background: transparent;
+  border: 0;
+  text-align: center;
+}
+.airbnb-pin span {
+  display: inline-block;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #222222;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--hairline);
+}
+.dark .airbnb-pin span {
+  background: #1e1e1e;
+  color: #f4f4f4;
+}
+
+/* Address the popup to match the app's typography. */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--canvas);
+  color: var(--ink);
+}

@@ -1,0 +1,8 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local database (recreate it any time with: python seed.py)
+*.db

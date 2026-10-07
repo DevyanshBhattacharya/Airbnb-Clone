@@ -1,0 +1,19 @@
+# Python / FastAPI backend
+backend/.venv/
+**/__pycache__/
+*.py[cod]
+backend/*.db
+backend/uploads/
+
+# Node / Next.js frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env*.local
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+
+# Agent/IDE instruction files (not part of the project source)
+SKILL.md
