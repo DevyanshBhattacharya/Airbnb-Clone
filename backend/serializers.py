@@ -11,7 +11,7 @@ router, it lives here in one place. This is deliberate: it is the only shared
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from models import Booking, Favorite, Listing, Review
+from models import Booking, Favorite, Listing, Review, User
 from schemas import (
     AmenityOut,
     BookingOut,
