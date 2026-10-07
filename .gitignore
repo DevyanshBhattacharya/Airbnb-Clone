@@ -15,5 +15,9 @@ npm-debug.log*
 # OS / editor
 .DS_Store
 
+# Vercel CLI (project link + build cache)
+.vercel/
+**/.vercel/
+
 # Agent/IDE instruction files (not part of the project source)
 SKILL.md
