@@ -9,7 +9,7 @@ import type { MapMarker } from "@/components/LeafletMapInner";
 import { ListingCard } from "@/components/ListingCard";
 import { useSearch } from "@/context/SearchContext";
 import { useUser } from "@/context/UserContext";
-import { getListings } from "@/lib/api";
+import { API_BASE, getListings } from "@/lib/api";
 import type { ListingCard as ListingCardType } from "@/lib/types";
 
 /**
@@ -107,7 +107,7 @@ export default function HomePage() {
             <p className="font-medium">We couldn&apos;t load listings.</p>
             <p className="mt-1 text-sm text-muted">{error}</p>
             <p className="mt-4 text-sm text-muted">
-              Is the backend running on {process.env.NEXT_PUBLIC_API_URL}?
+              API target: {API_BASE || "same origin (/api)"}
             </p>
           </div>
         )}

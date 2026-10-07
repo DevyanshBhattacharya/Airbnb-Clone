@@ -1,104 +1,147 @@
 # Deployment
 
-The project is two apps, and they deploy to **two different kinds of host**:
+This project deploys to **Vercel as one project** using [Vercel Services](https://vercel.com/docs/services)
+(beta, available on all plans). Services let a single Vercel project run multiple
+applications — here a **Next.js frontend** and a **FastAPI backend** — on one
+domain, with routing handled by Vercel.
 
-| Part | Host | Why |
-| --- | --- | --- |
-| **Frontend** (`frontend/`) | **Vercel** | It's a Next.js app — Vercel's native target. |
-| **Backend** (`backend/`) | A **container host** (Render, Railway, Fly.io, …) | It's a long-running FastAPI/ASGI process with a SQLite file and disk uploads. |
-
-> **Why not the backend on Vercel too?** Vercel runs stateless serverless
-> functions with an ephemeral, read-only filesystem. A FastAPI server with a
-> local SQLite file and uploaded images doesn't fit that model — the database
-> would reset on every cold start and uploads would vanish. Hosting it as a
-> container (or moving to Postgres + object storage) is the correct approach.
-
----
-
-## 1. Deploy the backend (Render, via the blueprint)
-
-The repo includes [`render.yaml`](../render.yaml) and a [`backend/Dockerfile`](../backend/Dockerfile).
-
-1. Push this repo to GitHub.
-2. On [Render](https://render.com): **New → Blueprint**, connect the repo. It will
-   pick up `render.yaml` and build the Docker image from `backend/`.
-3. Wait for the first deploy, then copy the service URL, e.g.
-   `https://airbnb-clone-api.onrender.com`.
-4. Open **Environment** and add:
-   - `CORS_ORIGINS` = your Vercel URL (you'll get it in step 2). You can add it
-     after the frontend deploy and redeploy.
-5. Verify: `https://<your-service>.onrender.com/api/health` → `{"status":"ok"}`
-   and `/docs` shows the API.
-
-**Data persistence.** The free plan has an ephemeral disk, so the demo data is
-re-seeded whenever the service starts. To keep data across restarts, add a disk
-on a paid plan:
-
-```yaml
-    disk:
-      name: data
-      mountPath: /data
-      sizeGB: 1
+```
+                         ┌──────────────────────────────┐
+  https://<app>.vercel.app│  Vercel project (one domain)  │
+                         │                               │
+   /            ────────▶ │  service "web"  (Next.js)     │  frontend/
+   /api/*       ────────▶ │  service "backend" (FastAPI)  │  backend/
+   /uploads/*   ────────▶ │  service "backend" (FastAPI)  │
+                         └──────────────────────────────┘
 ```
 
-The `Dockerfile` already points `DATABASE_URL`, `DB_FILE` and `UPLOAD_DIR` at
-`/data`, so no other change is needed.
-
-### Alternatives
-- **Railway / Fly.io:** both run the same `backend/Dockerfile`. Set `CORS_ORIGINS`
-  (and optionally `DATABASE_URL`, `UPLOAD_DIR`) as environment variables. Railway/Fly
-  also offer persistent volumes — mount one and point `DATABASE_URL` at it.
-- **Postgres instead of SQLite:** set `DATABASE_URL` to a Postgres URL and add
-  `psycopg[binary]` to `requirements.txt`. The SQLAlchemy models are unchanged.
+The frontend calls the API at the **same origin** (`/api/...`), so there is no
+CORS and no separate backend URL to configure.
 
 ---
 
-## 2. Deploy the frontend (Vercel)
+## 1. What's in the repo
 
-1. On [Vercel](https://vercel.com): **Add New → Project**, import the same repo.
-2. **Important — set the Root Directory to `frontend`.** The repo is a monorepo,
-   so Vercel must build from `frontend/`, not the repo root. If this is left at
-   the root, the deployment builds incorrectly and every route can 500.
-   - Settings → Build and Deployment → **Root Directory** → `frontend`.
-   - Framework Preset: **Next.js** (also pinned in `frontend/vercel.json`).
-3. Add an environment variable:
-   - `NEXT_PUBLIC_API_URL` = your backend URL from step 1
-     (e.g. `https://airbnb-clone-api.onrender.com`).
-   > `NEXT_PUBLIC_*` values are inlined at **build time**, so after changing this
-   > you must **redeploy** for it to take effect.
-4. Deploy. Visit the URL — the home page should load listings from the backend.
+| File | Purpose |
+| --- | --- |
+| [`vercel.json`](../vercel.json) (repo root) | Declares the two services + public routing. |
+| `frontend/` | Next.js service, mounted at `/`. |
+| `backend/` | FastAPI service, mounted at `/api` and `/uploads`, entrypoint `main:app`. |
 
-Finally, go back to Render and set `CORS_ORIGINS` to the Vercel domain
-(`https://<your-app>.vercel.app`), then redeploy the backend. Without this the
-browser blocks the API calls (CORS) and the app shows "We couldn't load listings".
+`vercel.json`:
+
+```json
+{
+  "services": {
+    "web":     { "root": "frontend/", "framework": "nextjs" },
+    "backend": { "root": "backend/", "framework": "fastapi", "entrypoint": "main:app" }
+  },
+  "rewrites": [
+    { "source": "/uploads/(.*)", "destination": { "service": "backend" } },
+    { "source": "/api/(.*)",     "destination": { "service": "backend" } },
+    { "source": "/(.*)",         "destination": { "service": "web" } }
+  ]
+}
+```
+
+## 2. Deploy
+
+### Option A — Vercel dashboard
+
+1. Push this repository to GitHub (it already has a remote).
+2. Vercel → **Add New → Project** → import the repo.
+3. **Leave the Root Directory as the repository root** (do **not** set it to
+   `frontend` — with Services the whole repo is the project).
+4. Set **Framework Preset → Services**.
+5. Add an environment variable:
+   - **`NEXT_PUBLIC_API_URL` = `same-origin`** (all services, Production + Preview).
+6. **Deploy.**
+
+### Option B — Vercel CLI
+
+```bash
+npm i -g vercel
+vercel login
+vercel link            # run at the repo root; framework: Services
+vercel env add NEXT_PUBLIC_API_URL   # value: same-origin
+vercel --prod
+```
+
+### Verify
+
+- `https://<app>.vercel.app/api/health` → `{"status":"ok"}`
+- `https://<app>.vercel.app/docs` → the FastAPI Swagger UI
+- `https://<app>.vercel.app/` → the marketplace, with listings loading.
+
+---
+
+## 3. Data persistence (important)
+
+Vercel Functions have a **read-only filesystem except `/tmp`**, and `/tmp` is
+**ephemeral and per-instance**. The backend detects Vercel and defaults to
+`sqlite:////tmp/airbnb.db` + `/tmp/uploads`, and **seeds the demo data on a fresh
+database** (`main.py`), so the app works out of the box. The trade-offs:
+
+- Data **resets on cold starts / new instances** and uploads don't persist.
+- For a portfolio demo under light traffic this is usually fine.
+
+For durable data, either:
+
+- **Postgres** — create a free [Neon](https://neon.tech) (or Vercel Postgres)
+  database, then set `DATABASE_URL` on the Vercel project and add
+  `psycopg[binary]` to `backend/requirements.txt`. The SQLAlchemy models are
+  unchanged.
+- **Blob storage** — point the upload path at Vercel Blob / S3 (the upload
+  endpoint is already swappable — see `backend/routers/uploads.py`).
+
+> Environment variables are read by the backend from `DATABASE_URL`,
+> `CORS_ORIGINS` and `UPLOAD_DIR` — no code changes needed.
+
+---
+
+## 4. Alternative: frontend on Vercel, backend on a container host
+
+If you'd rather keep the backend on its own host (e.g. for a real, persistent
+SQLite file), the repo is also set up for that:
+
+1. **Backend → Render** via [`render.yaml`](../render.yaml) +
+   [`backend/Dockerfile`](../backend/Dockerfile). Set `CORS_ORIGINS` to your
+   Vercel URL.
+2. **Frontend → Vercel** as a normal Next.js project:
+   - **Root Directory = `frontend`**
+   - `NEXT_PUBLIC_API_URL` = the Render service URL (absolute).
+
+See the git history / earlier revisions of this document for the step-by-step
+version of this path.
+
+---
+
+## 5. Local development
+
+**Two terminals (simplest):**
+
+```bash
+# terminal 1
+cd backend && python seed.py && uvicorn main:app --reload
+
+# terminal 2
+cd frontend && npm run dev        # NEXT_PUBLIC_API_URL defaults to 127.0.0.1:8000
+```
+
+**Or run the whole project exactly as Vercel does, in one command:**
+
+```bash
+vercel dev -L     # -L = local, no cloud auth needed
+```
 
 ---
 
 ## Troubleshooting
 
-### Every route returns 500 `FUNCTION_INVOCATION_FAILED`
-This is the classic monorepo symptom. Check, in order:
-
-1. **Root Directory is `frontend`** (Settings → Build and Deployment). This is
-   the cause in the vast majority of cases.
-2. **Framework Preset is Next.js** (or `frontend/vercel.json` is present — it is).
-3. The `cacheComponents` / `partialPrefetching` flags are **off** in
-   `frontend/next.config.ts`. They are experimental and have caused serverless
-   runtime crashes; the app does not need them.
-4. `engines.node` is `>=20.9` (Next.js 16 requirement) — set in `frontend/package.json`.
-
-### The page loads but shows "We couldn't load listings"
-- `NEXT_PUBLIC_API_URL` is missing or wrong on Vercel → set it and **redeploy**.
-- The backend's `CORS_ORIGINS` doesn't include the Vercel domain → add it.
-- The backend is asleep (Render free spins down) — the first request may take a
-  few seconds; retry.
-
-### Uploaded images don't render
-`/uploads/*` is proxied to the backend through a `rewrites()` rule. Ensure
-`NEXT_PUBLIC_API_URL` points at the deployed backend and that the backend
-`UPLOAD_DIR` is writable (a mounted disk for persistence).
-
-### The map is blank
-The map needs outbound access to OpenStreetMap tiles and runs only on the client
-(`ssr: false`), so a blocked network or a very slow connection shows the loading
-placeholder.
+| Symptom | Fix |
+| --- | --- |
+| Build succeeds but every route 500s | Framework Preset must be **Services**, Root Directory must be the **repo root**, and `vercel.json` must be at the repo root. |
+| Frontend loads but shows "We couldn't load listings" | `NEXT_PUBLIC_API_URL` must be `same-origin` (and redeploy — `NEXT_PUBLIC_*` is baked in at build time). |
+| `/api/*` returns 404 | The `rewrites` block in `vercel.json` is missing, or its order is wrong (backend rewrites must come before the `/(.*)` catch-all). |
+| Data disappears after a while | Expected with ephemeral SQLite — see §3 (add Postgres for persistence). |
+| Uploaded images 404 | `/uploads/*` must route to the `backend` service (`vercel.json`), and `UPLOAD_DIR` must be writable (`/tmp/uploads` on Vercel). |

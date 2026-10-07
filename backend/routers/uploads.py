@@ -25,8 +25,14 @@ from schemas import UploadOut
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
 # uploads/ sits next to the routers/ package (backend/uploads/) by default.
-# On hosts with persistent storage, point UPLOAD_DIR at a mounted volume.
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", Path(__file__).resolve().parent.parent / "uploads"))
+# On hosts with persistent storage, point UPLOAD_DIR at a mounted volume; on
+# Vercel (read-only fs except /tmp) the default moves to /tmp/uploads.
+_default_upload_dir = (
+    Path("/tmp/uploads")
+    if os.getenv("VERCEL")
+    else Path(__file__).resolve().parent.parent / "uploads"
+)
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", _default_upload_dir))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Restrict to real image types and cap the size to keep the demo sane.

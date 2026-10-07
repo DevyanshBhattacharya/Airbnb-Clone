@@ -17,8 +17,18 @@ import type {
   User,
 } from "./types";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const RAW_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+
+/**
+ * Base URL for API calls.
+ *
+ * - Local dev: `http://127.0.0.1:8000` (the FastAPI dev server).
+ * - Vercel Services: set `NEXT_PUBLIC_API_URL="same-origin"` — the API is a
+ *   sibling service mounted at `/api` on the same domain, so requests use
+ *   relative URLs and no CORS is involved.
+ */
+export const API_BASE =
+  RAW_BASE === "same-origin" ? "" : RAW_BASE.replace(/\/+$/, "");
 
 /** Error type that carries the HTTP status so callers can branch on it. */
 export class ApiError extends Error {

@@ -21,7 +21,14 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 # Fly, …) provide a persistent location, so the path is overridable via
 # DATABASE_URL. Note SQLite uses four slashes for an absolute path, e.g.
 # sqlite:////data/airbnb.db.
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./airbnb.db")
+#
+# On Vercel the filesystem is read-only except /tmp, so the default moves there.
+# /tmp is ephemeral (per instance), which is why main.py seeds demo data on a
+# fresh database. Point DATABASE_URL at Postgres for durable data.
+_default_url = (
+    "sqlite:////tmp/airbnb.db" if os.getenv("VERCEL") else "sqlite:///./airbnb.db"
+)
+DATABASE_URL = os.getenv("DATABASE_URL", _default_url)
 
 engine = create_engine(
     DATABASE_URL,

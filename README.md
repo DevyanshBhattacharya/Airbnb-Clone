@@ -108,11 +108,14 @@ unnecessary abstractions, no external services, no hidden magic.
 └── docs/                    # architecture docs + screenshots
 ```
 
-**Request flow:** the browser fetches FastAPI directly (`NEXT_PUBLIC_API_URL`),
-attaching the acting user's id as an `X-User-Id` header. FastAPI resolves the
-user from that header, runs the query through SQLAlchemy against SQLite, and
-returns a Pydantic-serialized JSON response. Writes (booking, listing CRUD) are
-validated server-side — the client is never trusted.
+**Request flow:** the browser fetches the API at `NEXT_PUBLIC_API_URL`, attaching
+the acting user's id as an `X-User-Id` header. Locally that is the FastAPI dev
+server directly; on Vercel the frontend and backend are one project and the
+browser calls `/api/...` on the same origin (`NEXT_PUBLIC_API_URL=same-origin`),
+which Vercel routes to the FastAPI service. FastAPI resolves the user from the
+header, runs the query through SQLAlchemy against SQLite, and returns a
+Pydantic-serialized JSON response. Writes (booking, listing CRUD) are validated
+server-side — the client is never trusted.
 
 ---
 
@@ -322,23 +325,29 @@ host mode.
 
 ## Deployment
 
-The two apps deploy to two different kinds of host:
-
-- **Frontend → Vercel** (native Next.js target).
-- **Backend → a container host** (Render/Railway/Fly) because it is a
-  long-running FastAPI process with a SQLite file and disk uploads — _not_ a fit
-  for Vercel's stateless serverless functions.
+Both apps deploy as **one Vercel project** using
+[Vercel Services](https://vercel.com/docs/services): the Next.js frontend and the
+FastAPI backend share a single domain, and the root [`vercel.json`](vercel.json)
+routes `/api/*` and `/uploads/*` to the backend. Because they share one origin
+there is **no CORS to configure** — the frontend calls the API with relative URLs
+(`NEXT_PUBLIC_API_URL=same-origin`).
 
 Full step-by-step guide: **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**. The short version:
 
-1. **Backend** — Render **Blueprint** using [`render.yaml`](render.yaml) and
-   [`backend/Dockerfile`](backend/Dockerfile). Set `CORS_ORIGINS` to your Vercel URL.
-2. **Frontend** — Vercel project with **Root Directory = `frontend`** and
-   `NEXT_PUBLIC_API_URL` = the backend URL, then redeploy.
+1. Vercel → **Add New → Project** → import the repo.
+2. Leave **Root Directory at the repo root (`./`)**, Framework Preset = `Services`.
+3. Set `NEXT_PUBLIC_API_URL=same-origin`, then deploy.
+4. Verify `/api/health` → `{"status":"ok"}` and that the home page loads listings.
 
-> ⚠️ **Monorepo gotcha:** Vercel must build from the `frontend` subdirectory. If
-> the Root Directory is left at the repo root, the build succeeds but every route
-> returns `500 FUNCTION_INVOCATION_FAILED`.
+> ⚠️ **Monorepo gotcha:** the Vercel project root must be the repository root so
+> the root `vercel.json` (which defines both services) is picked up. Setting it
+> to `frontend/` leaves the deployment without a backend. `NEXT_PUBLIC_*` values
+> are inlined at build time, so redeploy after changing them.
+
+> ℹ️ On Vercel the backend stores SQLite in ephemeral `/tmp` (auto-seeded on
+> boot). For durable data, run the backend on a container host instead (Render
+> via [`render.yaml`](render.yaml), or Railway/Fly) and point
+> `NEXT_PUBLIC_API_URL` at it — see the guide's alternative section.
 
 ## Screenshots
 

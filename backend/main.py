@@ -25,14 +25,33 @@ from routers.uploads import UPLOAD_DIR
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """
-    Create any missing tables when the server boots. ``create_all`` is
-    idempotent — it only creates tables that don't already exist — so this is
-    safe to run on every start. For schema *changes* you would reintroduce a
-    migration tool, but for this assignment re-running ``python seed.py``
-    rebuilds the schema from scratch.
+    Prepare the database when the server boots.
+
+    ``create_all`` is idempotent. On serverless hosts (Vercel) the SQLite file
+    lives in ephemeral /tmp, so a fresh instance starts empty — we seed the demo
+    data in that case. A local database that already has data is left untouched.
+    For schema *changes* you would reintroduce a migration tool.
     """
     Base.metadata.create_all(bind=engine)
+    _seed_demo_data_if_empty()
     yield
+
+
+def _seed_demo_data_if_empty() -> None:
+    """Populate the demo dataset once, if the database has no users yet."""
+    from database import SessionLocal
+    from models import User
+
+    db = SessionLocal()
+    try:
+        if db.query(User).count() > 0:
+            return
+    finally:
+        db.close()
+
+    import seed  # imported lazily to avoid a circular import at module load
+
+    seed.seed()
 
 
 app = FastAPI(
