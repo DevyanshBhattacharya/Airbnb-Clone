@@ -80,7 +80,9 @@ vercel --prod
 Vercel Functions have a **read-only filesystem except `/tmp`**, and `/tmp` is
 **ephemeral and per-instance**. The backend detects Vercel and defaults to
 `sqlite:////tmp/airbnb.db` + `/tmp/uploads`, and **seeds the demo data on a fresh
-database** (`main.py`), so the app works out of the box. The trade-offs:
+database** (`main.py`), so the app works out of the box. Detection also works
+when Vercel's optional system environment variables are not exposed. If you set
+`DATABASE_URL` or `UPLOAD_DIR` yourself, use writable locations. The trade-offs:
 
 - Data **resets on cold starts / new instances** and uploads don't persist.
 - For a portfolio demo under light traffic this is usually fine.
@@ -140,6 +142,8 @@ vercel dev -L     # -L = local, no cloud auth needed
 
 | Symptom | Fix |
 | --- | --- |
+| `/` shows `{"service":"Airbnb Clone API", ...}` | You are reaching the FastAPI service directly. Check that the Vercel project Root Directory is the **repo root**, Framework Preset is **Services**, and the latest deployment includes the root `vercel.json`. Redeploy after changing project settings. |
+| Backend log says `Read-only file system: '/var/task/uploads'` | Redeploy the backend with the current code. If `UPLOAD_DIR` is set in Vercel, remove it or set it to `/tmp/uploads`; `/var/task` is read-only. |
 | Build succeeds but every route 500s | Framework Preset must be **Services**, Root Directory must be the **repo root**, and `vercel.json` must be at the repo root. |
 | Frontend loads but shows "We couldn't load listings" | `NEXT_PUBLIC_API_URL` must be `same-origin` (and redeploy — `NEXT_PUBLIC_*` is baked in at build time). |
 | `/api/*` returns 404 | The `rewrites` block in `vercel.json` is missing, or its order is wrong (backend rewrites must come before the `/(.*)` catch-all). |

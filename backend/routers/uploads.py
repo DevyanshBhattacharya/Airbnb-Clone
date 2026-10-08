@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from deps import require_host
 from models import User
+from runtime_paths import uses_ephemeral_storage
 from schemas import UploadOut
 
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 # Vercel (read-only fs except /tmp) the default moves to /tmp/uploads.
 _default_upload_dir = (
     Path("/tmp/uploads")
-    if os.getenv("VERCEL")
+    if uses_ephemeral_storage()
     else Path(__file__).resolve().parent.parent / "uploads"
 )
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", _default_upload_dir))

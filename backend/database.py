@@ -17,6 +17,8 @@ import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from runtime_paths import uses_ephemeral_storage
+
 # A file-backed SQLite database by default. Hosting platforms (Render, Railway,
 # Fly, …) provide a persistent location, so the path is overridable via
 # DATABASE_URL. Note SQLite uses four slashes for an absolute path, e.g.
@@ -26,7 +28,7 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 # /tmp is ephemeral (per instance), which is why main.py seeds demo data on a
 # fresh database. Point DATABASE_URL at Postgres for durable data.
 _default_url = (
-    "sqlite:////tmp/airbnb.db" if os.getenv("VERCEL") else "sqlite:///./airbnb.db"
+    "sqlite:////tmp/airbnb.db" if uses_ephemeral_storage() else "sqlite:///./airbnb.db"
 )
 DATABASE_URL = os.getenv("DATABASE_URL", _default_url)
 
